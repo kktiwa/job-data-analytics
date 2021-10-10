@@ -66,4 +66,10 @@ class JobMetricsAppSpec extends AnyFlatSpec {
     JobMetricsApp
       .writeHighestPayingJobPerProfile("/Users/kunal.tiwary/personal/job-data-analytics/output-path/maxSalariesByYear.parquet")(jobDS)
   }
+
+  it should "return the current top earner details" in {
+    val path = "src/main/resources/job-data/part0.json"
+    val jobDS = JobMetricsApp.readJsonData(path)(sparkSession)
+    JobMetricsApp.currentTopEarner(jobDS)
+  }
 }

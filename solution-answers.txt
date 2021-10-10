@@ -65,6 +65,12 @@ Implementation function: JobMetricsApp.getBottomNPayingJobs
 +-----------------------------------+---------+-----------------------+----+
 
 7. Who is currently making the most money? If there is a tie, please order in lastName descending, fromDate descending.
+   Implementation function: JobMetricsApp.currentTopEarner
++------------------------------------+---------+--------+------+----------+------+--------------+
+|id                                  |firstName|lastName|salary|fromDate  |toDate|salary_row_num|
++------------------------------------+---------+--------+------+----------+------+--------------+
+|662bacae-9af4-463d-9be5-b22d65f5526f|Ulysses  |Zuniga  |159000|2018-01-23|null  |1             |
++------------------------------------+---------+--------+------+----------+------+--------------+
 
 8. What was the most popular job title started in 2019?
 

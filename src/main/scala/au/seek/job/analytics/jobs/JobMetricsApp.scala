@@ -145,6 +145,30 @@ object JobMetricsApp extends App {
       ).limit(bottomN)
   }
 
+  def currentTopEarner(ds: Dataset[Job]): DataFrame = {
+    val windowSpec = Window
+      //inorder to consider ALL rows in the partition
+      .partitionBy(col(JobHistoryWithProfileRow.toDate))
+      .orderBy(
+        desc(JobHistoryWithProfileRow.salary),
+        desc(JobHistoryWithProfileRow.lastName),
+        desc(JobHistoryWithProfileRow.firstName)
+      )
+
+    explodeJobProfile(ds)
+      //only select profiles where someone is currently working
+      .filter(x => x.fromDate.nonEmpty && x.toDate.isEmpty)
+      .select(
+        col(JobHistoryWithProfileRow.id),
+        col(JobHistoryWithProfileRow.firstName),
+        col(JobHistoryWithProfileRow.lastName),
+        col(JobHistoryWithProfileRow.salary),
+        col(JobHistoryWithProfileRow.fromDate),
+        col(JobHistoryWithProfileRow.toDate),
+        rank() over windowSpec as "salary_row_num"
+      ).filter(col("salary_row_num") === 1)
+  }
+
   /**
    *
    * @param ds
