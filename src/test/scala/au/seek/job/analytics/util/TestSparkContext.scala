@@ -1,3 +1,5 @@
+package au.seek.job.analytics.util
+
 import org.apache.spark.sql.SparkSession
 
 object TestSparkContext {

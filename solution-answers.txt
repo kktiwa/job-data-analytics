@@ -1,0 +1,96 @@
+2. Print the schema
+root
+ |-- id: string (nullable = true)
+ |-- profile: struct (nullable = true)
+ |    |-- firstName: string (nullable = true)
+ |    |-- jobHistory: array (nullable = true)
+ |    |    |-- element: struct (containsNull = true)
+ |    |    |    |-- fromDate: string (nullable = true)
+ |    |    |    |-- location: string (nullable = true)
+ |    |    |    |-- salary: long (nullable = true)
+ |    |    |    |-- title: string (nullable = true)
+ |    |    |    |-- toDate: string (nullable = true)
+ |    |-- lastName: string (nullable = true)
+
+3. How many records are there in the dataset?
+   17139693 records
+   Implementation function: JobMetricsApp.getRecordCount
+
+4. What is the average salary for each profile? Display the first 10 results, ordered by lastName in descending order.
+   Implementation function: JobMetricsApp.getAvgSalaryPerProfile
++------------------------------------+----------+------------------+
+|id                                  |lastName  |avg_salary        |
++------------------------------------+----------+------------------+
+|00074a7e-b29a-4a79-a100-6ad76ea905e4|Welty     |151250.0          |
+|00064b6a-4c3f-4dcf-ab42-a4168cd404db|Wallace   |63666.666666666664|
+|000747c7-e23e-4c05-9599-19c25d65a572|Taylor    |82111.11111111111 |
+|00098c7a-86d6-4f2a-82ae-b1dc7468cab6|Nichols   |76666.66666666667 |
+|000473fc-4151-471d-8e2c-447934c39d13|Mcroy     |142000.0          |
+|00008a82-3345-419f-92ec-517bca432ba4|Hawkins   |80666.66666666667 |
+|00021597-239e-47af-a665-6e20f1b2bd09|Garrett   |112000.0          |
+|00060ae4-a3ae-4751-82c9-3f26caae614a|Eppling   |111400.0          |
+|0007fe46-b26a-4666-83d2-8a6b81d13a59|Buchenroth|92750.0           |
+|0001da88-d735-4b97-ad48-2d26ff76e91d|Bernhard  |87600.0           |
++------------------------------------+----------+------------------+
+
+5. What is the average salary across the whole dataset?
+   Implementation function: JobMetricsApp.getAvgSalary
++----------------+
+|avg_salary     |
++----------------+
+|97473.6229416272|
++----------------+
+
+6. On average, what are the top 5 paying jobs? Bottom 5 paying jobs? If there is a tie, please order by title, location.
+Implementation function: JobMetricsApp.getTopNPayingJobs
++--------------+---------+-----------------------+----+
+|title         |location |avg_salary_by_job_title|rank|
++--------------+---------+-----------------------+----+
+|internal sales|Adelaide |97555.94285236429      |1   |
+|internal sales|Brisbane |97555.94285236429      |2   |
+|internal sales|Canberra |97555.94285236429      |3   |
+|internal sales|Hobart   |97555.94285236429      |4   |
+|internal sales|Melbourne|97555.94285236429      |5   |
++--------------+---------+-----------------------+----+
+
+Implementation function: JobMetricsApp.getBottomNPayingJobs
++-----------------------------------+---------+-----------------------+----+
+|title                              |location |avg_salary_by_job_title|rank|
++-----------------------------------+---------+-----------------------+----+
+|business development representative|Adelaide |97410.55035168272      |1   |
+|business development representative|Brisbane |97410.55035168272      |2   |
+|business development representative|Canberra |97410.55035168272      |3   |
+|business development representative|Hobart   |97410.55035168272      |4   |
+|business development representative|Melbourne|97410.55035168272      |5   |
++-----------------------------------+---------+-----------------------+----+
+
+7. Who is currently making the most money? If there is a tie, please order in lastName descending, fromDate descending.
+
+8. What was the most popular job title started in 2019?
+
+9. How many people are currently working?
+   7710613
+   Implementation function: JobMetricsApp.getNumEmployedCurrently
+
+10. For each person, list only their latest job. Display the first 10 results, ordered by lastName descending, firstName ascending order.
+
+11. For each person, list their highest paying job along with their first name, last name, salary and the year they made this salary. Store the results in a dataframe, and then print out 10 results
+    Implementation function: JobMetricsApp.getHighestPayingJobPerProfile
++---------+----------+------+----+
+|firstName|lastName  |salary|year|
++---------+----------+------+----+
+|Alan     |Hawkins   |87000 |2019|
+|Fred     |Bernhard  |98000 |2015|
+|Robert   |Garrett   |113000|2018|
+|Sarah    |Mcroy     |143000|2016|
+|Shonda   |Eppling   |113000|2014|
+|Shonda   |Eppling   |113000|2014|
+|Bess     |Wallace   |67000 |2019|
+|Ernest   |Taylor    |94000 |2018|
+|Antonio  |Welty     |156000|2019|
+|Ronald   |Buchenroth|106000|2014|
++---------+----------+------+----+
+
+12. Write out the last result (question 11) in parquet format, compressed, partitioned by year of their highest paying job
+    Implementation function: JobMetricsApp.writeHighestPayingJobPerProfile
+    Sample output written for one (part0.json) of the JSON files at `output-path/maxSalariesByYear.parquet`
