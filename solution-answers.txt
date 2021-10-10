@@ -36,7 +36,7 @@ root
 5. What is the average salary across the whole dataset?
    Implementation function: JobMetricsApp.getAvgSalary
 +----------------+
-|avg_salary     |
+|      avg_salary|
 +----------------+
 |97473.6229416272|
 +----------------+
@@ -69,16 +69,37 @@ Implementation function: JobMetricsApp.getBottomNPayingJobs
 +------------------------------------+---------+--------+------+----------+------+--------------+
 |id                                  |firstName|lastName|salary|fromDate  |toDate|salary_row_num|
 +------------------------------------+---------+--------+------+----------+------+--------------+
-|662bacae-9af4-463d-9be5-b22d65f5526f|Ulysses  |Zuniga  |159000|2018-01-23|null  |1             |
+|5b217f27-8f8d-4dcb-b430-b48f14441525|Kevin    |Zyla    |159000|2014-07-23|null  |1             |
 +------------------------------------+---------+--------+------+----------+------+--------------+
 
 8. What was the most popular job title started in 2019?
+Implementation function: JobMetricsApp.getMostPopularJobTitleForYear
++-----------------+---------------+
+|title            |job_title_count|
++-----------------+---------------+
+|Sheetmetal Worker|14764          |
++-----------------+---------------+
 
 9. How many people are currently working?
    7710613
    Implementation function: JobMetricsApp.getNumEmployedCurrently
 
 10. For each person, list only their latest job. Display the first 10 results, ordered by lastName descending, firstName ascending order.
+Implementation function: JobMetricsApp.getLatestJobPerProfile
++---------+--------+----------------------------+----------+-------------+
+|firstName|lastName|title                       |fromDate  |job_date_rank|
++---------+--------+----------------------------+----------+-------------+
+|Matthew  |Zywiec  |Multi Site Manager          |2017-04-23|1            |
+|Richard  |Zywiec  |assembler                   |2018-07-23|1            |
+|Robert   |Zywiec  |registration officer        |2016-08-08|1            |
+|Bobby    |Zywicki |taxation accountant         |2017-12-11|1            |
+|Calvin   |Zywicki |assistant operations manager|2015-04-24|1            |
+|Charles  |Zywicki |sales consultant            |2016-06-10|1            |
+|Cherryl  |Zywicki |trimmer                     |2017-06-01|1            |
+|Christine|Zywicki |internal sales              |2018-09-16|1            |
+|Darlene  |Zywicki |evaluator                   |2014-02-23|1            |
+|Donna    |Zywicki |internal sales              |2019-01-23|1            |
++---------+--------+----------------------------+----------+-------------+
 
 11. For each person, list their highest paying job along with their first name, last name, salary and the year they made this salary. Store the results in a dataframe, and then print out 10 results
     Implementation function: JobMetricsApp.getHighestPayingJobPerProfile

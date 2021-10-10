@@ -3,20 +3,35 @@ package au.seek.job.analytics.jobs
 import au.seek.job.analytics.models.{Job, JobHistory, JobHistoryWithProfileRow, JobProfile}
 import org.apache.spark.sql.expressions.Window
 import au.seek.job.analytics.util.SparkContextProvider._
-import org.apache.spark.sql.functions.{asc, avg, coalesce, col, dense_rank, desc, explode, rank, to_date, year}
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, DataFrame, Dataset, SaveMode, SparkSession}
 
 object JobMetricsApp extends App {
 
   import spark.implicits._
 
+  private val dateFormat = "yyyy-MM-dd"
+
+  /**
+   * Read JSON data from a given path
+   *
+   * @param filePath
+   * @param sparkSession
+   * @return
+   */
   def readJsonData(filePath: String)
                   (sparkSession: SparkSession): Dataset[Job] = {
     import sparkSession.implicits.newProductEncoder
     sparkSession.read.format("json").load(filePath).as[Job]
   }
 
-  //Total of 17139693 records
+  /**
+   * Return the count of rows in the given JSON data
+   *
+   * @param filePath
+   * @param sparkSession
+   * @return
+   */
   def getRecordCount(filePath: String)
                     (sparkSession: SparkSession): Long = {
     readJsonData(filePath)(sparkSession).count()
@@ -26,21 +41,16 @@ object JobMetricsApp extends App {
    *
    * @param topN
    * @param ds
-   * @return First 10 results ordered by lastName in descending order
+   * @return First `topN` results ordered by lastName in descending order
    */
-  def getAvgSalaryPerProfile(topN: Int)(ds: Dataset[Job]): DataFrame = {
-    val windowSpec = Window.partitionBy(Job.id)
-    val allSalariesByProfile = ds.select(
-      $"id" as Job.id,
-      $"profile.lastName" as JobProfile.lastName,
-      explode($"profile.jobHistory.salary") as JobHistory.salary
-    )
-
-    allSalariesByProfile
+  def getAvgSalaryPerProfile(topN: Int)
+                            (ds: Dataset[Job]): DataFrame = {
+    val windowSpec = Window.partitionBy(JobHistoryWithProfileRow.id)
+    explodeJobProfile(ds)
       .select(
-        col(Job.id),
-        col(JobProfile.lastName),
-        avg(JobHistory.salary) over windowSpec as "avg_salary"
+        col(JobHistoryWithProfileRow.id),
+        col(JobHistoryWithProfileRow.lastName),
+        avg(JobHistoryWithProfileRow.salary) over windowSpec as "avg_salary"
       ).dropDuplicates()
       .limit(topN)
       .orderBy(desc(JobProfile.lastName))
@@ -52,11 +62,8 @@ object JobMetricsApp extends App {
    * @return average salary across all job profiles
    */
   def getAvgSalary(ds: Dataset[Job]): DataFrame = {
-    val allSalaries = ds.select(
-      explode($"profile.jobHistory.salary") as JobHistory.salary
-    )
-
-    allSalaries.select(avg(JobHistory.salary) as "avg_salary")
+    explodeJobProfile(ds)
+      .select(avg(JobHistoryWithProfileRow.salary) as "avg_salary")
   }
 
   /**
@@ -65,7 +72,8 @@ object JobMetricsApp extends App {
    * @param ds
    * @return Top `topN` paying jobs. If tie order by title,location
    */
-  def getTopNPayingJobs(topN: Int)(ds: Dataset[Job]): DataFrame = {
+  def getTopNPayingJobs(topN: Int)
+                       (ds: Dataset[Job]): DataFrame = {
     val windowSpec = Window
       .partitionBy(col(JobHistory.title))
 
@@ -76,19 +84,7 @@ object JobMetricsApp extends App {
         col(JobHistory.title)
       )
 
-    val salariesWithLocationAndTitle = ds
-      .select(
-        $"id" as Job.id,
-        explode($"profile.jobHistory") as JobProfile.jobHistory
-      )
-      .select(
-        col(Job.id),
-        $"jobHistory.salary" as JobHistory.salary,
-        $"jobHistory.title" as JobHistory.title,
-        $"jobHistory.location" as JobHistory.location
-      )
-
-    salariesWithLocationAndTitle
+    explodeJobProfile(ds)
       .select(
         col(JobHistory.title),
         col(JobHistory.location),
@@ -108,7 +104,8 @@ object JobMetricsApp extends App {
    * @param ds
    * @return Bottom `bottomN` paying jobs. If tie order by title,location
    */
-  def getBottomNPayingJobs(bottomN: Int)(ds: Dataset[Job]): DataFrame = {
+  def getBottomNPayingJobs(bottomN: Int)
+                          (ds: Dataset[Job]): DataFrame = {
     val windowSpec = Window
       .partitionBy(col(JobHistory.title))
 
@@ -119,32 +116,26 @@ object JobMetricsApp extends App {
         col(JobHistory.title)
       )
 
-    val salariesWithLocationAndTitle = ds
+    explodeJobProfile(ds)
       .select(
-        $"id" as Job.id,
-        explode($"profile.jobHistory") as JobProfile.jobHistory
-      )
-      .select(
-        col(Job.id),
-        $"jobHistory.salary" as JobHistory.salary,
-        $"jobHistory.title" as JobHistory.title,
-        $"jobHistory.location" as JobHistory.location
-      )
-
-    salariesWithLocationAndTitle
-      .select(
-        col(JobHistory.title),
-        col(JobHistory.location),
-        avg(JobHistory.salary) over windowSpec as "avg_salary_by_job_title"
+        col(JobHistoryWithProfileRow.title),
+        col(JobHistoryWithProfileRow.location),
+        avg(JobHistoryWithProfileRow.salary) over windowSpec as "avg_salary_by_job_title"
       ).dropDuplicates()
       .select(
-        col(JobHistory.title),
-        col(JobHistory.location),
+        col(JobHistoryWithProfileRow.title),
+        col(JobHistoryWithProfileRow.location),
         col("avg_salary_by_job_title"),
         dense_rank() over rankSpec as "rank"
       ).limit(bottomN)
   }
 
+  /**
+   * Highest earner job profile. If tie, order by lastName descending, fromDate descending.
+   *
+   * @param ds
+   * @return
+   */
   def currentTopEarner(ds: Dataset[Job]): DataFrame = {
     val windowSpec = Window
       //inorder to consider ALL rows in the partition
@@ -169,21 +160,29 @@ object JobMetricsApp extends App {
       ).filter(col("salary_row_num") === 1)
   }
 
-  /**
-   *
-   * @param ds
-   * @return Highest earner job profile. If tie, order by lastName descending, fromDate descending.
-   */
-  def getTopEarner(ds: Dataset[Job]) = ???
-
 
   /**
+   * Most popular job title for a given year
    *
-   * @param year
+   * @param targetYear
    * @param ds
-   * @return Most popular job title for a given year
+   * @return
    */
-  def getMostPopularJobTitleForYear(year: Int)(ds: Dataset[Job]) = ???
+  def getMostPopularJobTitleForYear(targetYear: Int)
+                                   (ds: Dataset[Job]): DataFrame = {
+    explodeJobProfile(ds)
+      .select(
+        col(JobHistoryWithProfileRow.title),
+        year(formatDateColumn(JobHistoryWithProfileRow.fromDate)) as "year"
+      )
+      .filter(col("year") === targetYear)
+      .groupBy(col(JobHistoryWithProfileRow.title))
+      .agg(
+        count(col(JobHistoryWithProfileRow.title)) as "job_title_count"
+      )
+      .orderBy(desc("job_title_count"))
+      .limit(1)
+  }
 
 
   /**
@@ -208,15 +207,24 @@ object JobMetricsApp extends App {
    * @param ds
    * @return List latest job. Display the first 10 results, ordered by lastName descending, firstName ascending order.
    */
-  def getLatestJobPerProfile(ds: Dataset[Job]): Unit = ??? //{
-  //    ds
-  //      .filter(x => x.profile.jobHistory.isDefined && x.profile.jobHistory.nonEmpty)
-  //      .map { y =>
-  //        (y, y.profile.jobHistory.maxBy(j => Integer.valueOf(j.fromDate.replaceAll("-", ""))))
-  //      }
-  //  }.limit(10)
-  //    //.orderBy(desc(JobProfile.lastName), asc(JobProfile.firstName))
-  //    .show(truncate = false)
+  def getLatestJobPerProfile(ds: Dataset[Job]): DataFrame = {
+    val windowSpec = Window.partitionBy(JobHistoryWithProfileRow.id)
+      .orderBy(desc("fromDate_formatted"))
+    explodeJobProfile(ds)
+      .withColumn("fromDate_formatted",
+        formatDateColumn(JobHistoryWithProfileRow.fromDate)
+      )
+      .select(
+        col(JobHistoryWithProfileRow.firstName),
+        col(JobHistoryWithProfileRow.lastName),
+        col(JobHistoryWithProfileRow.title),
+        col(JobHistoryWithProfileRow.fromDate),
+        row_number() over windowSpec as "job_date_rank"
+      ).filter(col("job_date_rank") === 1)
+      .orderBy(
+        desc(JobHistoryWithProfileRow.lastName), asc(JobHistoryWithProfileRow.firstName)
+      ).limit(10)
+  }
 
   /**
    *
@@ -279,19 +287,19 @@ object JobMetricsApp extends App {
         $"profile.lastName" as JobProfile.lastName,
         explode($"profile.jobHistory") as JobProfile.jobHistory
       ).select(
-      col(Job.id),
-      col(JobProfile.firstName),
-      col(JobProfile.lastName),
-      $"jobHistory.title" as JobHistory.title,
-      $"jobHistory.location" as JobHistory.location,
-      $"jobHistory.salary" as JobHistory.salary,
-      $"jobHistory.fromDate" as JobHistory.fromDate,
-      $"jobHistory.toDate" as JobHistory.toDate
+      col(JobHistoryWithProfileRow.id) as JobHistoryWithProfileRow.id,
+      col(JobHistoryWithProfileRow.firstName) as JobHistoryWithProfileRow.firstName,
+      col(JobHistoryWithProfileRow.lastName) as JobHistoryWithProfileRow.lastName,
+      $"jobHistory.title" as JobHistoryWithProfileRow.title,
+      $"jobHistory.location" as JobHistoryWithProfileRow.location,
+      $"jobHistory.salary" as JobHistoryWithProfileRow.salary,
+      $"jobHistory.fromDate" as JobHistoryWithProfileRow.fromDate,
+      $"jobHistory.toDate" as JobHistoryWithProfileRow.toDate
     ).as[JobHistoryWithProfileRow]
   }
 
   private def formatDateColumn(dateColName: String): Column = {
-    to_date(col(dateColName), "yyyy-MM-dd")
+    to_date(col(dateColName), dateFormat)
   }
 
 }
